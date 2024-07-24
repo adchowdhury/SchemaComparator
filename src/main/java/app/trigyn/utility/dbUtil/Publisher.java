@@ -300,6 +300,7 @@ public class Publisher {
 					cell	= row.createCell(3);
 					cell.setCellValue(tempCol.getColumnName());
 					columnIndex.put(tempCol.getColumnName(), rowCounter - 1);
+					cell.setCellStyle(getStyleError());
 					
 					cell	= row.createCell(4);
 					cell.setCellValue(tempCol.isNonUnique() ? "☒" : "☑");
@@ -334,8 +335,13 @@ public class Publisher {
 						 targetOnly = false;
 						 
 						if(columnIndex.containsKey(tempCol.getColumnName())) {
+							XSSFCellStyle	cellStyle	= ((XSSFWorkbook) workbook).createCellStyle();
+							cellStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+							
 							currentRow = columnIndex.get(tempCol.getColumnName());
 							row		= sheet.getRow(currentRow);
+							cell	= row.getCell(3);
+							cell.setCellStyle(cellStyle);
 						}else {
 							targetOnly = true;
 							columnCount++;
@@ -613,7 +619,7 @@ public class Publisher {
 		cell.setCellValue("Primary");
 		cell.setCellStyle(cellStyle);
 
-		int columnCount, rowCounter = 3;
+		int columnCount, rowCounter = 3, totalColumnCount = 0;
 		ResultSetMetaData sourceMetadata = null, targetMetaData = null;
 		
 		XSSFCellStyle	cellStyleMerge	= ((XSSFWorkbook) workbook).createCellStyle();
@@ -622,6 +628,7 @@ public class Publisher {
 		
 		Map<String, Integer> columnIndex = new HashMap<String, Integer>();
 		for (Map.Entry<String, ResultSetMetaData> a_sourceTable : dbCompareStructure.sourceTables.entrySet()) {
+			totalColumnCount = 0;
 			sourceMetadata = a_sourceTable.getValue();
 			columnIndex.clear();
 			
@@ -640,6 +647,7 @@ public class Publisher {
 				
 				columnCount = sourceMetadata.getColumnCount();
 				for(int columnCounter = 1; columnCounter <= columnCount; columnCounter++) {
+					totalColumnCount++;
 					row		= sheet.createRow(rowCounter++);
 					
 					cell	= row.createCell(2);
@@ -650,6 +658,7 @@ public class Publisher {
 					cell	= row.createCell(3);
 					cell.setCellValue(sourceMetadata.getColumnName(columnCounter));
 					columnIndex.put(sourceMetadata.getColumnName(columnCounter), rowCounter - 1);
+					cell.setCellStyle(getStyleError());
 					
 					cell	= row.createCell(4);
 					cell.setCellValue(sourceMetadata.getColumnTypeName(columnCounter));
@@ -674,13 +683,21 @@ public class Publisher {
 				}//for loop of columns of source db
 				
 				columnCount = targetMetaData.getColumnCount();
+				
 				for(int columnCounter = 1; columnCounter <= columnCount; columnCounter++) {
 					int currentRow = -1;
 					
 					if(columnIndex.containsKey(targetMetaData.getColumnName(columnCounter))) {
 						currentRow = columnIndex.get(targetMetaData.getColumnName(columnCounter));
 						row		= sheet.getRow(currentRow);
+						
+						cell	= row.getCell(3);
+						
+						XSSFCellStyle	cellStyleNew	= ((XSSFWorkbook) workbook).createCellStyle();
+						cellStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+						cell.setCellStyle(cellStyleNew);
 					}else {
+						totalColumnCount++;
 						currentRow = rowCounter++;
 						row		= sheet.createRow(currentRow);
 						
@@ -693,27 +710,28 @@ public class Publisher {
 						cell	= row.createCell(3);
 						cell.setCellValue(targetMetaData.getColumnName(columnCounter));
 						columnIndex.put(targetMetaData.getColumnName(columnCounter), rowCounter - 1);
+						cell.setCellStyle(getStyleError());
 					}
 					
 					cell	= row.createCell(11);
 					cell.setCellValue(targetMetaData.getColumnTypeName(columnCounter));
 					
 					tempCell = row.getCell(4);
-					if(cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
+					if(tempCell != null && cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
 						cell.setCellStyle(getStyleError());
 					}
 					
 					cell	= row.createCell(12);
 					cell.setCellValue(targetMetaData.getPrecision(columnCounter));
 					tempCell = row.getCell(5);
-					if(cell.getNumericCellValue() != tempCell.getNumericCellValue()) {
+					if(tempCell != null && cell.getNumericCellValue() != tempCell.getNumericCellValue()) {
 						cell.setCellStyle(getStyleError());
 					}
 					
 					cell	= row.createCell(13);
 					cell.setCellValue(targetMetaData.getScale(columnCounter));
 					tempCell = row.getCell(6);
-					if(cell.getNumericCellValue() != tempCell.getNumericCellValue()) {
+					if(tempCell != null && cell.getNumericCellValue() != tempCell.getNumericCellValue()) {
 						cell.setCellStyle(getStyleError());
 					}
 					
@@ -722,7 +740,7 @@ public class Publisher {
 					cell.setCellValue(targetMetaData.isNullable(columnCounter) == 1 ? "☒" : "☑");
 					
 					tempCell = row.getCell(7);
-					if(cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
+					if(tempCell != null && cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
 						cell.setCellStyle(getCenterStyleError());
 					}
 					
@@ -731,7 +749,7 @@ public class Publisher {
 					cell.setCellValue(targetMetaData.isAutoIncrement(columnCounter) ? "☑" : "☒");
 					
 					tempCell = row.getCell(8);
-					if(cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
+					if(tempCell != null && cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
 						cell.setCellStyle(getCenterStyleError());
 					}
 					
@@ -740,8 +758,8 @@ public class Publisher {
 					cell.setCellValue("☒");
 				}//for loop of columns of target db
 				
-				if(columnCount > 1) {
-					sheet.addMergedRegion(new CellRangeAddress(rowCounter - columnCount, rowCounter - 1, 2, 2));	
+				if(totalColumnCount > 1) {
+					sheet.addMergedRegion(new CellRangeAddress(rowCounter - totalColumnCount, rowCounter - 1, 2, 2));	
 				}
 				
 				rs = dbCompareStructure.sourceDBMetaData.getPrimaryKeys(dbCompareStructure.sourceConnection.getSchemaName(), dbCompareStructure.sourceConnection.getSchemaName(), a_sourceTable.getKey());

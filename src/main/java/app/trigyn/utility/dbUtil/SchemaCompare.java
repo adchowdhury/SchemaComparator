@@ -39,7 +39,7 @@ public class SchemaCompare {
                 String jarDir = new File(SchemaCompare.class.getProtectionDomain().getCodeSource().getLocation().getPath()).getParent();
                 File propertiesFile = new File(jarDir, configFileNameName);
 
-                if (propertiesFile.exists()) {
+                if (propertiesFile.exists() && propertiesFile.canRead()) {
                     try (FileInputStream input = new FileInputStream(propertiesFile)) {
                     	props.load(input);
                         System.out.println("Loaded properties from the same path as the JAR.");
@@ -188,13 +188,22 @@ public class SchemaCompare {
 				if(isSkipRecordCount) {
 					dbCompare.sourceTablesRow.put(tableName, 0);	
 				}else {
-					rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + "." + tableName);
+					if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
+						rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + ".\"" + tableName + "\"");	
+					}else {
+						rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + "." + tableName);
+					}
+					
 					rsTable.next();
 					dbCompare.sourceTablesRow.put(tableName, rsTable.getInt(1));
 				}
 				
+				if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
+					dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from " + sourceSchemaName + ".\"" + tableName + "\"").getMetaData());	
+				}else {
+					dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from " + sourceSchemaName + "." + tableName).getMetaData());
+				}
 				
-				dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from " + sourceSchemaName + "." + tableName).getMetaData());
 			} catch (Exception e) {
 				e.printStackTrace();
 				System.err.println(e.getMessage());
@@ -220,14 +229,24 @@ public class SchemaCompare {
 				if(isSkipRecordCount) {
 					dbCompare.targetTablesRow.put(tableName, 0);
 				}else {
-					rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + "." + tableName);
+					if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
+						rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + ".\"" + tableName + "\"");	
+					}else {
+						rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + "." + tableName);
+					}
+					
 					rsTable.next();
 					dbCompare.targetTablesRow.put(tableName, rsTable.getInt(1));
 				}
 				
-				dbCompare.targetTables.put(rs.getString(3), targetCon.prepareStatement("select * from " + targetSchemaName + "." + tableName).getMetaData());
+				if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
+					dbCompare.targetTables.put(rs.getString(3), targetCon.prepareStatement("select * from " + targetSchemaName + ".\"" + tableName + "\"").getMetaData());	
+				}else {
+					dbCompare.targetTables.put(rs.getString(3), targetCon.prepareStatement("select * from " + targetSchemaName + "." + tableName).getMetaData());
+				}
+				
 			} catch (Exception e) {
-				e.printStackTrace();
+				//e.printStackTrace();
 				System.err.println(e.getMessage());
 			}
 			System.out.print(" : Done\n");
