@@ -9,4 +9,4 @@ Feel free to download only the jar and config file from the release folder. That
 java -jar .\target\dbUtil-0.0.3-SNAPSHOT.jar
 ```
 
-This was tested on JDK 11.
+This was tested on JDK 11 with MySQL, PostgreSQL, MariaDB
