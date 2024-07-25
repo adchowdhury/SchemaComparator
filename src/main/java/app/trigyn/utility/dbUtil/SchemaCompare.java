@@ -205,7 +205,7 @@ public class SchemaCompare {
 				}
 				
 			} catch (Exception e) {
-				e.printStackTrace();
+//				e.printStackTrace();
 				System.err.println(e.getMessage());
 			}
 			System.out.print(" : Done\n");
