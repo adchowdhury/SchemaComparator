@@ -63,7 +63,7 @@
 			<resource>
 				<directory>src/main/resources</directory>
 				<excludes>
-					<exclude>**/config1.properties</exclude>
+					<exclude>**/config.properties</exclude>
 				</excludes>
 			</resource>
 		</resources>
