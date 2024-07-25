@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>app.trigyn</groupId>
 	<artifactId>dbUtil</artifactId>
-	<version>0.0.3-SNAPSHOT</version>
+	<version>1.0.1</version>
 	<name>SchemaComparator</name>
 
 	<properties>
@@ -63,7 +63,7 @@
 			<resource>
 				<directory>src/main/resources</directory>
 				<excludes>
-					<exclude>**/config.properties</exclude>
+					<exclude>**/config1.properties</exclude>
 				</excludes>
 			</resource>
 		</resources>
@@ -76,6 +76,20 @@
 			<artifactId>poi-ooxml</artifactId>
 			<version>5.2.2</version>
 		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/com.microsoft.sqlserver/mssql-jdbc -->
+		<dependency>
+		    <groupId>com.microsoft.sqlserver</groupId>
+		    <artifactId>mssql-jdbc</artifactId>
+		    <version>12.7.1.jre11-preview</version>
+		</dependency>
+		
+		<!-- https://mvnrepository.com/artifact/com.microsoft.sqlserver/mssql-jdbc
+		<dependency>
+		    <groupId>com.microsoft.sqlserver</groupId>
+		    <artifactId>mssql-jdbc</artifactId>
+		    <version>7.1.4.jre11-preview</version>
+		</dependency> -->
 
 
 		<!-- https://mvnrepository.com/artifact/org.apache.poi/poi -->

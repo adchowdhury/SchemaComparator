@@ -42,8 +42,11 @@ public class DBCompareStructure {
 			String currentTableName) throws Throwable {
 		boolean isEqual = true, nonUnique;
 		ResultSet rs = null;
-		
-		rs = a_dbCompareStructure.sourceDBMetaData.getIndexInfo(a_dbCompareStructure.sourceConnection.getSchemaName(),  a_dbCompareStructure.sourceConnection.getSchemaName(),  currentTableName, false, true);
+		String tempSchema = a_dbCompareStructure.sourceConnection.getSchemaName();
+		if(tempSchema != null && tempSchema.trim().length() < 1) {
+			tempSchema = null;
+		}
+		rs = a_dbCompareStructure.sourceDBMetaData.getIndexInfo(tempSchema, tempSchema,  currentTableName, false, true);
 		
 		while(rs.next()) {
 			
@@ -57,6 +60,12 @@ public class DBCompareStructure {
 					setType(rs.getInt("TYPE")).
 					setSorting(rs.getString("ASC_OR_DESC")).
 					setTableName(currentTableName);
+			
+			//MSSQL returns null at times
+			if(tempCol.getColumnName() == null) {
+				continue;
+			}
+			
 			a_dbCompareStructure.sourceTableColumnIndexes.get(currentTableName).put(tempCol.getColumnName(), tempCol);
 			
 			
@@ -66,7 +75,7 @@ public class DBCompareStructure {
 //			System.out.println("ASC_OR_DESC > " + rs.getString("ASC_OR_DESC"));
 		}
 		
-		rs = a_dbCompareStructure.sourceDBMetaData.getImportedKeys(a_dbCompareStructure.sourceConnection.getSchemaName(), a_dbCompareStructure.sourceConnection.getSchemaName(), currentTableName);
+		rs = a_dbCompareStructure.sourceDBMetaData.getImportedKeys(tempSchema, tempSchema, currentTableName);
 		while(rs.next()) {
 			if(a_dbCompareStructure.sourceTableColumnIndexes.containsKey(currentTableName) == false) {
 				a_dbCompareStructure.sourceTableColumnIndexes.put(currentTableName, new TreeMap<String, DBColumnIndex>());
@@ -97,8 +106,11 @@ public class DBCompareStructure {
 //		System.out.println("===========================================================================\n\n");
 		
 		// working on target from here
-		
-		rs = a_dbCompareStructure.targetDBMetaData.getIndexInfo(a_dbCompareStructure.targetConnection.getSchemaName(),  a_dbCompareStructure.targetConnection.getSchemaName(),  currentTableName, false, true);
+		tempSchema = a_dbCompareStructure.targetConnection.getSchemaName();
+		if (tempSchema != null && tempSchema.trim().length() < 1) {
+			tempSchema = null;
+		}
+		rs = a_dbCompareStructure.targetDBMetaData.getIndexInfo(tempSchema,  tempSchema,  currentTableName, false, true);
 
 		while(rs.next()) {
 			
@@ -112,6 +124,11 @@ public class DBCompareStructure {
 					setType(rs.getInt("TYPE")).
 					setSorting(rs.getString("ASC_OR_DESC")).
 					setTableName(currentTableName);
+			
+			if(tempCol.getColumnName() == null) {
+				continue;
+			}
+			
 			a_dbCompareStructure.targetTableColumnIndexes.get(currentTableName).put(tempCol.getColumnName(), tempCol);
 			
 			
@@ -122,7 +139,7 @@ public class DBCompareStructure {
 		}
 		
 		
-		rs = a_dbCompareStructure.targetDBMetaData.getImportedKeys(a_dbCompareStructure.targetConnection.getSchemaName(), a_dbCompareStructure.targetConnection.getSchemaName(), currentTableName);
+		rs = a_dbCompareStructure.targetDBMetaData.getImportedKeys(tempSchema, tempSchema, currentTableName);
 		while(rs.next()) {
 			if(a_dbCompareStructure.targetTableColumnIndexes.containsKey(currentTableName) == false) {
 				a_dbCompareStructure.targetTableColumnIndexes.put(currentTableName, new TreeMap<String, DBColumnIndex>());
@@ -181,11 +198,21 @@ public class DBCompareStructure {
 		return isEqual;
 	}
 	
-	public final static boolean compareDBTable(ResultSetMetaData sourceMetaData, ResultSetMetaData targetMetaData, 
+	/**
+	 * 
+	 * @param a_strTableName need to pass this parameter only for MSSQL as they don't return the table name in 
+	 * 			{@link ResultSetMetaData}
+	 * @param sourceMetaData
+	 * @param targetMetaData
+	 * @param a_dbCompareStructure
+	 * @return
+	 * @throws Throwable
+	 */
+	public final static boolean compareDBTable(String a_strTableName, ResultSetMetaData sourceMetaData, ResultSetMetaData targetMetaData, 
 			DBCompareStructure a_dbCompareStructure) throws Throwable {
 		boolean isEqual = true;
 		ResultSet rs = null;
-		String currentTableName = null;
+		String currentTableName = a_strTableName;
 		
 		if(sourceMetaData == null || targetMetaData == null) {
 			return false;
@@ -197,7 +224,6 @@ public class DBCompareStructure {
 		
 		for(int iColCounter = 1; iColCounter <= sourceMetaData.getColumnCount(); iColCounter++) {
 			if(iColCounter == 1) {
-				currentTableName = sourceMetaData.getTableName(iColCounter);
 				a_dbCompareStructure.sourceTableColumns.put(currentTableName, new  TreeMap<String, DBColumn>());
 			}
 			
@@ -211,12 +237,15 @@ public class DBCompareStructure {
 				setReadOnly(sourceMetaData.isReadOnly(iColCounter)).
 				setNullable(sourceMetaData.isNullable(iColCounter) == 1).
 				setAutoIncreament(sourceMetaData.isAutoIncrement(iColCounter)).
-				setTableName(sourceMetaData.getTableName(iColCounter));
+				setTableName(currentTableName);
 			
 			a_dbCompareStructure.sourceTableColumns.get(tempColumn.getTableName()).put(tempColumn.getColumnName(), tempColumn);
 		}
-		
-		rs = a_dbCompareStructure.sourceDBMetaData.getPrimaryKeys(a_dbCompareStructure.sourceConnection.getSchemaName(), a_dbCompareStructure.sourceConnection.getSchemaName(), currentTableName);
+		String tempSchema = a_dbCompareStructure.sourceConnection.getSchemaName();
+		if(tempSchema != null && tempSchema.trim().length() < 1) {
+			tempSchema = null;
+		}
+		rs = a_dbCompareStructure.sourceDBMetaData.getPrimaryKeys(tempSchema, tempSchema, currentTableName);
 		while(rs.next()) {
 			String colName = rs.getString("COLUMN_NAME");
 			if(a_dbCompareStructure.sourceTableColumns.get(currentTableName).containsKey(colName) == false) {
@@ -228,7 +257,7 @@ public class DBCompareStructure {
 		
 		for(int iColCounter = 1; iColCounter <= targetMetaData.getColumnCount(); iColCounter++) {
 			if(iColCounter == 1) {
-				a_dbCompareStructure.targetTableColumns.put(targetMetaData.getTableName(iColCounter), new  TreeMap<String, DBColumn>());
+				a_dbCompareStructure.targetTableColumns.put(currentTableName, new  TreeMap<String, DBColumn>());
 			}
 			
 			DBColumn tempColumn = new DBColumn();
@@ -241,12 +270,17 @@ public class DBCompareStructure {
 				setReadOnly(targetMetaData.isReadOnly(iColCounter)).
 				setNullable(targetMetaData.isNullable(iColCounter) == 1).
 				setAutoIncreament(targetMetaData.isAutoIncrement(iColCounter)).
-				setTableName(targetMetaData.getTableName(iColCounter));
+				setTableName(currentTableName);
 			
 			a_dbCompareStructure.targetTableColumns.get(tempColumn.getTableName()).put(tempColumn.getColumnName(), tempColumn);
 		}
 		
-		rs = a_dbCompareStructure.targetDBMetaData.getPrimaryKeys(a_dbCompareStructure.targetConnection.getSchemaName(), a_dbCompareStructure.targetConnection.getSchemaName(), currentTableName);
+		tempSchema = a_dbCompareStructure.targetConnection.getSchemaName();
+		if (tempSchema != null && tempSchema.trim().length() < 1) {
+			tempSchema = null;
+		}
+			
+		rs = a_dbCompareStructure.targetDBMetaData.getPrimaryKeys(tempSchema, tempSchema, currentTableName);
 		while(rs.next()) {
 			String colName = rs.getString("COLUMN_NAME");
 			a_dbCompareStructure.targetTableColumns.get(currentTableName).get(colName).setPrimaryKey(true);

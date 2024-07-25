@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.Security;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
@@ -84,6 +85,9 @@ public class SchemaCompare {
 		Properties props = loadProperties();
 		System.out.println(props);
 		
+		String disabledAlgorithms = Security.getProperty("jdk.tls.disabledAlgorithms");
+		disabledAlgorithms = disabledAlgorithms.replace("TLSv1, TLSv1.1,", "");
+		Security.setProperty("jdk.tls.disabledAlgorithms", disabledAlgorithms);
 		
 		isSkipRecordCount = "true".equalsIgnoreCase(props.getProperty("loadRecordCount")) == false;
 		
@@ -118,8 +122,13 @@ public class SchemaCompare {
 	}
 	
 	private static final void listDatabaseObjects(DBCompareStructure a_dbCompareStructure) throws Throwable {
-		ResultSet	rs	= a_dbCompareStructure.sourceDBMetaData.getTables(a_dbCompareStructure.sourceConnection.getSchemaName(),
-				a_dbCompareStructure.sourceConnection.getSchemaName(), "%", null);
+		String tempSchema = a_dbCompareStructure.sourceConnection.getSchemaName();
+		if(tempSchema != null && tempSchema.trim().length() < 1) {
+			tempSchema = null;
+		}
+		
+		ResultSet	rs	= a_dbCompareStructure.sourceDBMetaData.getTables(tempSchema,
+				tempSchema, "%", null);
 //		System.out.println("Source=================");
 		while (rs.next()) {
 			if("TABLE".equalsIgnoreCase(rs.getString("TABLE_TYPE"))) {
@@ -128,9 +137,14 @@ public class SchemaCompare {
 //			System.out.println(rs.getString(3) + " is " + rs.getString("TABLE_TYPE"));
 			a_dbCompareStructure.sourceObjects.put(rs.getString(3), rs.getString("TABLE_TYPE"));
 		}
+		
+		 tempSchema = a_dbCompareStructure.targetConnection.getSchemaName();
+			if(tempSchema != null && tempSchema.trim().length() < 1) {
+				tempSchema = null;
+			}
 //		System.out.println("Target=================");
-		rs	= a_dbCompareStructure.targetDBMetaData.getTables(a_dbCompareStructure.targetConnection.getSchemaName(),
-				a_dbCompareStructure.targetConnection.getSchemaName(), "%", null);
+		rs	= a_dbCompareStructure.targetDBMetaData.getTables(tempSchema,
+				tempSchema, "%", null);
 		while (rs.next()) {
 			if("TABLE".equalsIgnoreCase(rs.getString("TABLE_TYPE"))) {
 				continue;
@@ -168,10 +182,13 @@ public class SchemaCompare {
 		System.out.println("SchemaCompare.getDBCompareStructure()");
 		
 		DBCompareStructure	dbCompare	= new DBCompareStructure();
-		
+		String tempSchema = sourceSchemaName;
+		if(sourceSchemaName != null && sourceSchemaName.trim().length() < 1) {
+			tempSchema = null;
+		}
 		DatabaseMetaData	dBMetaData	= sourceCon.getMetaData();
 		dbCompare.sourceDBMetaData = dBMetaData;
-		ResultSet			rs			= dBMetaData.getTables(sourceSchemaName, sourceSchemaName, "%", new String[]{"TABLE"});
+		ResultSet			rs			= dBMetaData.getTables(tempSchema, tempSchema, "%", new String[]{"TABLE"});
 		ResultSet rsTable = null;
 		String tableName = null;
 		System.out.println();
@@ -183,13 +200,19 @@ public class SchemaCompare {
 			}
 			
 			tableName = rs.getString(3);
-			System.out.print("Analyzing : " + tableName);
+			System.out.println("Analyzing : " + tableName);
 			try {
 				if(isSkipRecordCount) {
 					dbCompare.sourceTablesRow.put(tableName, 0);	
 				}else {
 					if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
 						rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + ".\"" + tableName + "\"");	
+					}else if(getDataBaseType(sourceCon) == DataBaseType.MSSQL) {
+						if(tempSchema == null) {
+							rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + tableName);
+						}else {
+							rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + "." + tableName);
+						}
 					}else {
 						rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + "." + tableName);
 					}
@@ -200,6 +223,12 @@ public class SchemaCompare {
 				
 				if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
 					dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from " + sourceSchemaName + ".\"" + tableName + "\"").getMetaData());	
+				}else if(getDataBaseType(sourceCon) == DataBaseType.MSSQL) {
+					if(tempSchema == null) {
+						dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from \"" + tableName + "\"").getMetaData());
+					}else {
+						dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from " + sourceSchemaName + "." + tableName).getMetaData());
+					}
 				}else {
 					dbCompare.sourceTables.put(tableName, sourceCon.prepareStatement("select * from " + sourceSchemaName + "." + tableName).getMetaData());
 				}
@@ -208,14 +237,17 @@ public class SchemaCompare {
 //				e.printStackTrace();
 				System.err.println(e.getMessage());
 			}
-			System.out.print(" : Done\n");
+			System.out.println(" : Done\n");
 		}
 
 		System.out.println("SchemaCompare.getDBCompareStructure(1)");
-		
+		 tempSchema = targetSchemaName;
+			if(targetSchemaName != null && targetSchemaName.trim().length() < 1) {
+				tempSchema = null;
+			}
 		dBMetaData	= targetCon.getMetaData();
 		dbCompare.targetDBMetaData = dBMetaData;
-		rs			= dBMetaData.getTables(targetSchemaName, targetSchemaName, "%",  new String[]{"TABLE"});
+		rs			= dBMetaData.getTables(tempSchema, tempSchema, "%",  new String[]{"TABLE"});
 		while (rs.next()) {
 			if(rs.getString("TABLE_TYPE").equalsIgnoreCase("TABLE") == false) {
 				System.out.println("Ignoring " + rs.getString(3));
@@ -223,7 +255,7 @@ public class SchemaCompare {
 			}
 			
 			tableName = rs.getString(3);
-			System.out.print("Analyzing : " + tableName);
+			System.out.println("Analyzing : " + tableName);
 			//System.out.println(rs.getString(3));
 			try {
 				if(isSkipRecordCount) {
@@ -231,6 +263,12 @@ public class SchemaCompare {
 				}else {
 					if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
 						rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + ".\"" + tableName + "\"");	
+					}else if(getDataBaseType(sourceCon) == DataBaseType.MSSQL) {
+						if(tempSchema == null) {
+							rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + tableName);
+						}else {
+							rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + "." + tableName);
+						}
 					}else {
 						rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + "." + tableName);
 					}
@@ -241,15 +279,21 @@ public class SchemaCompare {
 				
 				if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
 					dbCompare.targetTables.put(rs.getString(3), targetCon.prepareStatement("select * from " + targetSchemaName + ".\"" + tableName + "\"").getMetaData());	
+				}else if(getDataBaseType(sourceCon) == DataBaseType.MSSQL) {
+					if(tempSchema == null) {
+						dbCompare.targetTables.put(tableName, targetCon.prepareStatement("select * from \"" + tableName + "\"").getMetaData());
+					}else {
+						dbCompare.targetTables.put(tableName, targetCon.prepareStatement("select * from " + targetSchemaName + "." + tableName).getMetaData());
+					}
 				}else {
 					dbCompare.targetTables.put(rs.getString(3), targetCon.prepareStatement("select * from " + targetSchemaName + "." + tableName).getMetaData());
 				}
 				
 			} catch (Exception e) {
-				//e.printStackTrace();
+//				e.printStackTrace();
 				System.err.println(e.getMessage());
 			}
-			System.out.print(" : Done\n");
+			System.out.println(" : Done");
 		}
 		return dbCompare;
 	}
@@ -258,6 +302,8 @@ public class SchemaCompare {
 		System.out.println("SchemaCompare.getTargetConnection()");
 		if(a_connectionDetails.getConnectionString().contains("postgresql")) {
 			Class.forName("org.postgresql.Driver");
+		}else if(a_connectionDetails.getConnectionString().contains("sqlserver")) {
+			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
 		}
 		Connection con = DriverManager.getConnection(a_connectionDetails.getConnectionString(),
 				a_connectionDetails.getUserName(), a_connectionDetails.getPassword());
@@ -267,7 +313,7 @@ public class SchemaCompare {
 	private static DataBaseType getDataBaseType(Connection a_con) throws Throwable {
 		DatabaseMetaData dBMetaData = a_con.getMetaData();
 		String dbName = dBMetaData.getDatabaseProductName();
-		System.out.println(dbName);
+		//System.out.println(dbName);
 		if(dbName == null || dbName.trim().length() < 1) {
 			return DataBaseType.Undefined;
 		}
@@ -276,6 +322,8 @@ public class SchemaCompare {
 			return DataBaseType.MySQL;
 		}else if("PostgreSQL".equalsIgnoreCase(dbName)) {
 			return DataBaseType.PostgreSQL;
+		}else if("Microsoft SQL Server".equalsIgnoreCase(dbName)) {
+			return DataBaseType.MSSQL;
 		}
 		
 		return DataBaseType.Undefined;

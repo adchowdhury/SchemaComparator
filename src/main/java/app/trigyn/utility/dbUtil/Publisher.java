@@ -639,7 +639,7 @@ public class Publisher {
 			
 			targetMetaData = dbCompareStructure.targetTables.get(a_sourceTable.getKey());
 
-			if (DBCompareStructure.compareDBTable(sourceMetadata,
+			if (DBCompareStructure.compareDBTable(a_sourceTable.getKey(), sourceMetadata,
 					dbCompareStructure.targetTables.get(a_sourceTable.getKey()), 
 					dbCompareStructure) == false) {
 				
@@ -756,13 +756,17 @@ public class Publisher {
 					cell	= row.createCell(16);
 					cell.setCellStyle(getCenterStyle());
 					cell.setCellValue("☒");
+					
 				}//for loop of columns of target db
 				
 				if(totalColumnCount > 1) {
 					sheet.addMergedRegion(new CellRangeAddress(rowCounter - totalColumnCount, rowCounter - 1, 2, 2));	
 				}
-				
-				rs = dbCompareStructure.sourceDBMetaData.getPrimaryKeys(dbCompareStructure.sourceConnection.getSchemaName(), dbCompareStructure.sourceConnection.getSchemaName(), a_sourceTable.getKey());
+				String tempSchema = dbCompareStructure.sourceConnection.getSchemaName();
+				if(tempSchema != null && tempSchema.trim().length() < 1) {
+					tempSchema = null;
+				}
+				rs = dbCompareStructure.sourceDBMetaData.getPrimaryKeys(tempSchema, tempSchema, a_sourceTable.getKey());
 				while(rs.next()) {
 					String colName = rs.getString("COLUMN_NAME");
 					if(columnIndex.containsKey(colName)) {
@@ -771,6 +775,11 @@ public class Publisher {
 						cell	= row.createCell(9);
 						cell.setCellStyle(getCenterStyle());
 						cell.setCellValue("☑");
+						
+						tempCell = row.getCell(16);
+						if(tempCell != null) {
+							tempCell.setCellStyle(getCenterStyleError());	
+						}
 					}else {
 						System.err.println(colName + " not present in column list");
 					}
@@ -778,7 +787,11 @@ public class Publisher {
 				
 				rs.close();
 				
-				rs = dbCompareStructure.sourceDBMetaData.getPrimaryKeys(dbCompareStructure.sourceConnection.getSchemaName(), dbCompareStructure.sourceConnection.getSchemaName(), a_sourceTable.getKey());
+				tempSchema = dbCompareStructure.targetConnection.getSchemaName();
+				if (tempSchema != null && tempSchema.trim().length() < 1) {
+					tempSchema = null;
+				}
+				rs = dbCompareStructure.targetDBMetaData.getPrimaryKeys(tempSchema, tempSchema, a_sourceTable.getKey());
 				while(rs.next()) {
 					String colName = rs.getString("COLUMN_NAME");
 					if(columnIndex.containsKey(colName)) {
@@ -789,7 +802,7 @@ public class Publisher {
 						cell.setCellValue("☑");
 						
 						tempCell = row.getCell(9);
-						if(cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
+						if(tempCell != null && cell.getStringCellValue().equalsIgnoreCase(tempCell.getStringCellValue()) == false) {
 							cell.setCellStyle(getCenterStyleError());
 						}
 					}else {
@@ -808,6 +821,10 @@ public class Publisher {
 		}
 
 		System.out.println("Publisher.publishTableDetails(All tables are scanned)");
+		sheet.autoSizeColumn(2);
+		sheet.autoSizeColumn(3);
+		sheet.autoSizeColumn(5);
+		sheet.autoSizeColumn(12);
 	}
 
 	private void publishTableSummary() throws Throwable {
