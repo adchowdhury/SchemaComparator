@@ -304,6 +304,8 @@ public class SchemaCompare {
 			Class.forName("org.postgresql.Driver");
 		}else if(a_connectionDetails.getConnectionString().contains("sqlserver")) {
 			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+		}else if(a_connectionDetails.getConnectionString().contains("mariadb")) {
+			Class.forName("org.mariadb.jdbc.Driver");
 		}
 		Connection con = DriverManager.getConnection(a_connectionDetails.getConnectionString(),
 				a_connectionDetails.getUserName(), a_connectionDetails.getPassword());
