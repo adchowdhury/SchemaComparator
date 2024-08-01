@@ -261,13 +261,13 @@ public class SchemaCompare {
 				if(isSkipRecordCount) {
 					dbCompare.targetTablesRow.put(tableName, 0);
 				}else {
-					if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
+					if(getDataBaseType(targetCon) == DataBaseType.PostgreSQL) {
 						rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + ".\"" + tableName + "\"");	
-					}else if(getDataBaseType(sourceCon) == DataBaseType.MSSQL) {
+					}else if(getDataBaseType(targetCon) == DataBaseType.MSSQL) {
 						if(tempSchema == null) {
-							rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + tableName);
+							rsTable = targetCon.createStatement().executeQuery("select count(*) from " + tableName);
 						}else {
-							rsTable = sourceCon.createStatement().executeQuery("select count(*) from " + sourceSchemaName + "." + tableName);
+							rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + "." + tableName);
 						}
 					}else {
 						rsTable = targetCon.createStatement().executeQuery("select count(*) from " + targetSchemaName + "." + tableName);
@@ -277,9 +277,9 @@ public class SchemaCompare {
 					dbCompare.targetTablesRow.put(tableName, rsTable.getInt(1));
 				}
 				
-				if(getDataBaseType(sourceCon) == DataBaseType.PostgreSQL) {
+				if(getDataBaseType(targetCon) == DataBaseType.PostgreSQL) {
 					dbCompare.targetTables.put(rs.getString(3), targetCon.prepareStatement("select * from " + targetSchemaName + ".\"" + tableName + "\"").getMetaData());	
-				}else if(getDataBaseType(sourceCon) == DataBaseType.MSSQL) {
+				}else if(getDataBaseType(targetCon) == DataBaseType.MSSQL) {
 					if(tempSchema == null) {
 						dbCompare.targetTables.put(tableName, targetCon.prepareStatement("select * from \"" + tableName + "\"").getMetaData());
 					}else {
